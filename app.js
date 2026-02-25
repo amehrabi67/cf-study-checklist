@@ -12,36 +12,52 @@ const ADMIN_PASSWORD = 'CFstudy2025';               // ← change this
 
 // ─── STUDY STEP DEFINITIONS ──────────────────────────────────────────────────
 const SURVEYS = {
-  sleep:   { label:'Sleep Quality Survey',  url:'https://purdue.ca1.qualtrics.com/jfe/form/SV_80buUCCnp3ssuEu' },
-  anxiety: { label:'Test Anxiety Survey',   url:'https://purdue.ca1.qualtrics.com/jfe/form/SV_bkGoyGnyAYnrbtY' },
-  fatigue: { label:'Fatigue Survey',        url:'https://purdue.ca1.qualtrics.com/jfe/form/SV_eD4CwmMjOpMLm3c' },
-  review:  { label:'Review Text Check',     url:'https://purdue.ca1.qualtrics.com/jfe/form/SV_8k5vYg8glY43VIi' },
+  anxiety: { label:'Test Anxiety Survey',  url:'https://purdue.ca1.qualtrics.com/jfe/form/SV_bkGoyGnyAYnrbtY' },
+  sleep:   { label:'Sleep Quality Survey', url:'https://purdue.ca1.qualtrics.com/jfe/form/SV_80buUCCnp3ssuEu' },
+  fatigue: { label:'Fatigue Survey',       url:'https://purdue.ca1.qualtrics.com/jfe/form/SV_eD4CwmMjOpMLm3c' },
+  review:  { label:'Read the Text',        url:'https://purdue.ca1.qualtrics.com/jfe/form/SV_8k5vYg8glY43VIi' },
+  exam:    { label:'Actual Exam (with HRV)',url:'https://web.ics.purdue.edu/~amehrabi/survey.html' },
 };
 
+// ── DAY 1 ─────────────────────────────────────────────────────────────────────
+// 1. Test Anxiety Survey (pre-exam)
+// 2. Polar H10 fitted + HRV baseline
+// 3. Exam 1 start timestamp
+// 4. Actual Exam (survey.html)
+// 5. Exam 1 end timestamp
+// 6. Sleep Quality Survey (post-exam)
+// 7. Review materials delivered by RA
 const SESSION1 = [
-  { id:'S1-01a', label:'Sleep Quality Survey',          type:'survey', key:'sleep',   phase:'pre',  desc:'Before Exam 1',              who:'participant' },
-  { id:'S1-01b', label:'Test Anxiety Survey',           type:'survey', key:'anxiety', phase:'pre',  desc:'Before Exam 1',              who:'participant' },
-  { id:'S1-01c', label:'Fatigue Survey (Pre-Exam)',     type:'survey', key:'fatigue', phase:'pre',  desc:'Before Exam 1',              who:'participant' },
-  { id:'S1-02',  label:'Polar H10 Fitted & Verified',  type:'ra',                    desc:'RA — check HRV sensor signal', who:'ra' },
-  { id:'S1-03',  label:'Resting HRV Baseline (5 min)', type:'ra',                    desc:'RA — record before Exam 1',    who:'ra' },
-  { id:'S1-04',  label:'Exam 1 — Start Time',          type:'timestamp',             desc:'RA — mark exact start time',   who:'ra' },
-  { id:'S1-05',  label:'Exam 1 — End Time',            type:'timestamp',             desc:'RA — mark exact end time',     who:'ra' },
-  { id:'S1-06a', label:'Sleep Quality Survey (Post)',  type:'survey', key:'sleep',   phase:'post', desc:'After Exam 1',               who:'participant' },
-  { id:'S1-06b', label:'Test Anxiety Survey (Post)',   type:'survey', key:'anxiety', phase:'post', desc:'After Exam 1',               who:'participant' },
-  { id:'S1-06c', label:'Fatigue Survey (Post-Exam)',   type:'survey', key:'fatigue', phase:'post', desc:'After Exam 1',               who:'participant' },
-  { id:'S1-07',  label:'Review Materials Delivered',  type:'ra',                    desc:'RA — explain task + hand out', who:'ra' },
+  { id:'S1-01',  label:'Test Anxiety Survey',           type:'survey',    key:'anxiety', phase:'pre',  desc:'Complete before Exam 1',       who:'participant' },
+  { id:'S1-02',  label:'Polar H10 Fitted & Verified',  type:'ra',                        desc:'RA — check HRV sensor signal',  who:'ra' },
+  { id:'S1-03',  label:'Resting HRV Baseline (5 min)', type:'ra',                        desc:'RA — record resting baseline',  who:'ra' },
+  { id:'S1-04',  label:'Exam 1 — Start Time',          type:'timestamp',                 desc:'RA — mark exact start time',   who:'ra' },
+  { id:'S1-05',  label:'Exam 1 (Actual Test)',         type:'survey',    key:'exam',     desc:'Complete the exam with HRV',   who:'participant' },
+  { id:'S1-06',  label:'Exam 1 — End Time',            type:'timestamp',                 desc:'RA — mark exact end time',     who:'ra' },
+  { id:'S1-07',  label:'Sleep Quality Survey',         type:'survey',    key:'sleep',   phase:'post', desc:'Complete after Exam 1',        who:'participant' },
+  { id:'S1-08',  label:'Review Materials Delivered',  type:'ra',                        desc:'RA — explain task + hand out', who:'ra' },
 ];
 
+// ── BETWEEN SESSIONS (Review group only) ──────────────────────────────────────
+// Read the text — tracked in Session 2 as first step for Review group
+
+// ── DAY 2 ─────────────────────────────────────────────────────────────────────
+// 1. Read the Text (Review group only — done between sessions)
+// 2. Fatigue Survey (pre-exam)
+// 3. Polar H10 fitted + HRV baseline
+// 4. Exam 2 start timestamp
+// 5. Actual Exam (survey.html)
+// 6. Exam 2 end timestamp
+// 7. Compensation recorded
 const SESSION2_ALL = [
-  { id:'S2-01',  label:'Review Text Check',            type:'survey', key:'review',  phase:'pre',  desc:'Review group only — confirm text read', who:'participant', reviewOnly:true },
-  { id:'S2-02a', label:'Sleep Quality Survey',         type:'survey', key:'sleep',   phase:'pre',  desc:'Before Exam 2',              who:'participant' },
-  { id:'S2-02b', label:'Test Anxiety Survey',          type:'survey', key:'anxiety', phase:'pre',  desc:'Before Exam 2',              who:'participant' },
-  { id:'S2-02c', label:'Fatigue Survey (Pre-Exam)',    type:'survey', key:'fatigue', phase:'pre',  desc:'Before Exam 2',              who:'participant' },
-  { id:'S2-03',  label:'Resting HRV Baseline (5 min)',type:'ra',                    desc:'RA — record before Exam 2',    who:'ra' },
-  { id:'S2-04',  label:'Exam 2 — Start Time',         type:'timestamp',             desc:'RA — mark exact start time',   who:'ra' },
-  { id:'S2-05',  label:'Exam 2 — End Time',           type:'timestamp',             desc:'RA — mark exact end time',     who:'ra' },
-  { id:'S2-06',  label:'Fatigue Survey (Post-Exam)',  type:'survey', key:'fatigue', phase:'post', desc:'After Exam 2',               who:'participant' },
-  { id:'S2-07',  label:'Compensation Recorded',       type:'ra',                    desc:'RA — bonus + final payment',   who:'ra' },
+  { id:'S2-01',  label:'Read the Text',                type:'survey',    key:'review',               desc:'Review group — complete before Day 2', who:'participant', reviewOnly:true },
+  { id:'S2-02',  label:'Fatigue Survey',               type:'survey',    key:'fatigue', phase:'pre', desc:'Complete before Exam 2',       who:'participant' },
+  { id:'S2-03',  label:'Polar H10 Fitted & Verified',  type:'ra',                                    desc:'RA — check HRV sensor signal', who:'ra' },
+  { id:'S2-04',  label:'Resting HRV Baseline (5 min)', type:'ra',                                    desc:'RA — record resting baseline', who:'ra' },
+  { id:'S2-05',  label:'Exam 2 — Start Time',          type:'timestamp',                             desc:'RA — mark exact start time',   who:'ra' },
+  { id:'S2-06',  label:'Exam 2 (Actual Test)',         type:'survey',    key:'exam',                 desc:'Complete the exam with HRV',   who:'participant' },
+  { id:'S2-07',  label:'Exam 2 — End Time',            type:'timestamp',                             desc:'RA — mark exact end time',     who:'ra' },
+  { id:'S2-08',  label:'Compensation Recorded',        type:'ra',                                    desc:'RA — bonus + final payment',   who:'ra' },
 ];
 
 const REVIEW_GROUPS = ['Review', 'No Review'];
