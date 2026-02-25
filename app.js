@@ -66,28 +66,26 @@ const APP = {
 };
 
 // ─── API LAYER ────────────────────────────────────────────────────────────────
-async function apiGet(params) {
-  const qs = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_URL}?${qs}`, { method:'GET' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-async function apiPost(body) {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-// Wrapper that shows sync state in topbar
+// Apps Script blocks POST preflight from GitHub Pages (CORS).
+// Solution: encode ALL requests as GET params — no preflight triggered.
 async function api(method, payload) {
   setSyncState('syncing');
   try {
-    const result = method === 'GET' ? await apiGet(payload) : await apiPost(payload);
+    // Flatten payload into query string
+    // For write operations, encode the full body as a 'body' param
+    let params;
+    if (method === 'GET') {
+      params = new URLSearchParams(payload).toString();
+    } else {
+      // WRITE: encode full payload as 'body' param — avoids CORS preflight
+      params = new URLSearchParams({ body: JSON.stringify(payload) }).toString();
+    }
+    const res = await fetch(`${API_URL}?${params}`, {
+      method: 'GET',
+      redirect: 'follow',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const result = await res.json();
     if (result.error) throw new Error(result.error);
     setSyncState('ok');
     return result;
@@ -219,7 +217,7 @@ function mountParticipant() {
         <div class="card-label">Access Your Portal</div>
         <div class="field mb16">
           <label class="lbl">Participant ID</label>
-          <input class="input mono" id="p-code" placeholder="CF001" maxlength="6" autocomplete="off"/>
+          <input class="input mono" id="p-code" placeholder="CF001" maxlength="6" autocomplete="off" onkeydown="if(event.key==='Enter')pLookup()"/>
         </div>
         <button class="btn btn-primary btn-full btn-lg" onclick="pLookup()">Access My Sessions →</button>
         <div class="divider"></div>
@@ -230,7 +228,6 @@ function mountParticipant() {
       <div id="p-result"></div>
     </div>
   `);
-  document.getElementById('p-code').addEventListener('keydown', e => { if(e.key==='Enter') pLookup(); });
 }
 
 async function pLookup() {
@@ -398,7 +395,7 @@ async function pMarkSurvey(code, stepId, session) {
   const el = document.getElementById('p-result');
   el.innerHTML += `<div id="p-saving" class="alert alert-info">Saving…</div>`;
   try {
-    const res = await api('POST', { action:'markStep', code, session, stepId, note:'', ts: new Date().toISOString() });
+    const res = await api('WRITE', { action:'markStep', code, session, stepId, note:'', ts: new Date().toISOString() });
     APP.cache[code] = res.participant;
     el.innerHTML = buildParticipantPortal(res.participant);
   } catch(e) {
@@ -437,7 +434,7 @@ async function submitReg() {
   setPage(`<div class="center" style="padding:80px"><div class="spinner"></div><p class="muted" style="margin-top:16px">Registering…</p></div>`);
 
   try {
-    const res = await api('POST', { action:'create', data:{ firstName:first, lastName:last, email, phone } });
+    const res = await api('WRITE', { action:'create', data:{ firstName:first, lastName:last, email, phone } });
     const p   = res.participant;
     APP.cache[p.code] = p;
     showModal(`
@@ -475,7 +472,7 @@ function mountCollector() {
       <div class="card-label mb16">Load Participant</div>
       <div class="g2">
         <div class="field"><label class="lbl">Participant Code</label>
-          <input class="input mono" id="c-code" placeholder="CF001" maxlength="6" autocomplete="off"/></div>
+          <input class="input mono" id="c-code" placeholder="CF001" maxlength="6" autocomplete="off" onkeydown="if(event.key==='Enter')cLoad()"/></div>
         <div class="field"><label class="lbl">RA Initials</label>
           <input class="input" id="c-ra" placeholder="AJ" maxlength="4"/></div>
       </div>
@@ -483,7 +480,6 @@ function mountCollector() {
     </div>
     <div id="c-panel"></div>
   `);
-  document.getElementById('c-code').addEventListener('keydown', e => { if(e.key==='Enter') cLoad(); });
 }
 
 async function cLoad() {
@@ -501,7 +497,7 @@ async function cLoad() {
     const p = res.participant;
     if (ra && p.raInitials !== ra) {
       p.raInitials = ra;
-      await api('POST', { action:'update', data:{ code, raInitials:ra } });
+      await api('WRITE', { action:'update', data:{ code, raInitials:ra } });
     }
     APP.cache[code]    = p;
     APP.collectorCode  = code;
@@ -660,7 +656,7 @@ async function cMark(session, stepId, _) {
   const code = APP.collectorCode; const p = APP.cache[code]; if(!p) return;
   const note = document.getElementById('cn_'+stepId)?.value.trim() || '';
   try {
-    const res = await api('POST', { action:'markStep', code, session, stepId, note, ts: new Date().toISOString() });
+    const res = await api('WRITE', { action:'markStep', code, session, stepId, note, ts: new Date().toISOString() });
     APP.cache[code] = res.participant;
     renderCPanel(); cShowSession(session);
   } catch(e) { alert('Save failed. Please retry.'); }
@@ -671,7 +667,7 @@ async function cTimestamp(session, stepId) {
   const note = document.getElementById('cn_'+stepId)?.value.trim() || '';
   const ts   = new Date().toISOString();
   try {
-    const res = await api('POST', { action:'markStep', code, session, stepId, note, ts });
+    const res = await api('WRITE', { action:'markStep', code, session, stepId, note, ts });
     APP.cache[code] = res.participant;
     renderCPanel(); cShowSession(session);
   } catch(e) { alert('Save failed. Please retry.'); }
@@ -680,7 +676,7 @@ async function cTimestamp(session, stepId) {
 async function cUndo(session, stepId) {
   const code = APP.collectorCode; const p = APP.cache[code]; if(!p) return;
   try {
-    const res = await api('POST', { action:'unmarkStep', code, session, stepId });
+    const res = await api('WRITE', { action:'unmarkStep', code, session, stepId });
     APP.cache[code] = res.participant;
     renderCPanel(); cShowSession(session);
   } catch(e) { alert('Undo failed. Please retry.'); }
@@ -695,7 +691,7 @@ async function cUpdateNotes(v)   { await cUpdate({notes:v}); }
 async function cUpdate(fields) {
   const code = APP.collectorCode; if (!code) return;
   try {
-    const res = await api('POST', { action:'update', data:{ code, ...fields } });
+    const res = await api('WRITE', { action:'update', data:{ code, ...fields } });
     APP.cache[code] = res.participant;
   } catch(e) {}
 }
@@ -726,7 +722,7 @@ async function saveSchedule(code) {
   const s2Time = document.getElementById('ss2t').value;
   closeModal();
   try {
-    const res = await api('POST', { action:'update', data:{ code, s1Date, s1Time, s2Date, s2Time } });
+    const res = await api('WRITE', { action:'update', data:{ code, s1Date, s1Time, s2Date, s2Time } });
     APP.cache[code] = res.participant;
     renderCPanel();
   } catch(e) { alert('Save failed.'); }
@@ -744,13 +740,12 @@ function mountAdmin() {
           <div class="page-title" style="font-size:22px;margin-bottom:18px">Dashboard Login</div>
           <div class="field">
             <label class="lbl">Password</label>
-            <input class="input" type="password" id="admin-pw" placeholder="••••••••"/>
+            <input class="input" type="password" id="admin-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')adminLogin()"/>
           </div>
           <button class="btn btn-primary btn-full" onclick="adminLogin()">Sign In →</button>
         </div>
       </div>
     `);
-    document.getElementById('admin-pw').addEventListener('keydown', e => { if(e.key==='Enter') adminLogin(); });
     return;
   }
   loadAdminData();
@@ -922,7 +917,7 @@ async function aAdd() {
   if (!first||!last||!email) { alert('Name and email are required.'); return; }
   closeModal();
   try {
-    const res = await api('POST', { action:'create', data:{ firstName:first, lastName:last, email, phone, group, raInitials:ra } });
+    const res = await api('WRITE', { action:'create', data:{ firstName:first, lastName:last, email, phone, group, raInitials:ra } });
     APP.cache[res.participant.code] = res.participant;
     loadAdminData();
   } catch(e) { alert('Failed to create participant.'); }
@@ -983,7 +978,7 @@ async function aSave(code) {
   };
   closeModal();
   try {
-    const res = await api('POST', { action:'update', data });
+    const res = await api('WRITE', { action:'update', data });
     APP.cache[code] = res.participant;
     loadAdminData();
   } catch(e) { alert('Save failed.'); }
@@ -992,7 +987,7 @@ async function aSave(code) {
 async function aDrop(code) {
   if (!confirm(`Mark ${code} as Dropped?`)) return;
   try {
-    await api('POST', { action:'update', data:{ code, status:'dropped' } });
+    await api('WRITE', { action:'update', data:{ code, status:'dropped' } });
     loadAdminData();
   } catch(e) { alert('Failed.'); }
 }
